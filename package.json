@@ -1,0 +1,21 @@
+{
+  "name": "portal-db",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Portal facility database: Sequelize models, seed data, and a REST API.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "setup": "node src/setup.js",
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mysql2": "^3.12.0",
+    "sequelize": "^6.37.5"
+  }
+}
