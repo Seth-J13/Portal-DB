@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { askAboutData, llmStatus } from './ask.js';
 import { httpError } from './errors.js';
 import {
   Cake,
@@ -14,9 +15,11 @@ import {
   Robot,
   Shaft,
   Surface,
+  TABLE_MODELS,
   TestChamber,
+  WikiArticle,
 } from './models.js';
-import { createRecord, deleteRecord, getRecord, listRecords, updateRecord } from './crud.js';
+import { createRecord, deleteRecord, getRecord, listRecords, listRecordsPage, updateRecord } from './crud.js';
 import { chambersInShaft, getCharacterRoster, getPortalPlacements } from './queries.js';
 
 export const api = Router();
@@ -41,12 +44,38 @@ function integerId(value, label) {
   return Number(value);
 }
 
+function pageQuery(req) {
+  const hasLimit = req.query.limit !== undefined;
+  const hasOffset = req.query.offset !== undefined;
+  const hasQ = typeof req.query.q === 'string' && req.query.q.trim() !== '';
+  if (!hasLimit && !hasOffset && !hasQ) return null;
+
+  let limit = Number(req.query.limit);
+  if (!Number.isInteger(limit) || limit < 1) limit = 40;
+  limit = Math.min(limit, 100);
+
+  let offset = Number(req.query.offset);
+  if (!Number.isInteger(offset) || offset < 0) offset = 0;
+
+  const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 80) : '';
+  return { limit, offset, q };
+}
+
+async function sendList(req, res, model) {
+  const page = pageQuery(req);
+  if (!page) {
+    res.json(await listRecords(model));
+    return;
+  }
+  res.json(await listRecordsPage(model, page));
+}
+
 function mountCrud(path, model) {
   const [idAttr] = Object.keys(model.primaryKeys);
   const isInteger = model.rawAttributes[idAttr].type.key === 'INTEGER';
 
   api.get(path, asyncHandler(async (req, res) => {
-    res.json(await listRecords(model));
+    await sendList(req, res, model);
   }));
 
   api.get(`${path}/:id`, asyncHandler(async (req, res) => {
@@ -89,7 +118,7 @@ function mountComposite(path, model, keySpecs) {
   }
 
   api.get(path, asyncHandler(async (req, res) => {
-    res.json(await listRecords(model));
+    await sendList(req, res, model);
   }));
 
   api.get(paramPath, asyncHandler(async (req, res) => {
@@ -126,6 +155,7 @@ mountCrud('/test-chambers', TestChamber);
 mountCrud('/gels', Gel);
 mountCrud('/interactables', Interactable);
 mountCrud('/surfaces', Surface);
+mountCrud('/wiki-articles', WikiArticle);
 
 mountComposite('/portals', Portal, [
   { param: 'portalGunId', field: 'portal_gun_id', integer: true },
@@ -166,9 +196,26 @@ api.get('/procedures/chambers-in-shaft/:shaftId', asyncHandler(async (req, res) 
   res.json(await chambersInShaft(shaftId));
 }));
 
+api.get('/stats', asyncHandler(async (req, res) => {
+  const counts = {};
+  let total = 0;
+  for (const model of TABLE_MODELS) {
+    const count = await model.count();
+    counts[model.tableName] = count;
+    total += count;
+  }
+  res.json({ total, counts, llm: llmStatus() });
+}));
+
+api.post('/ask', asyncHandler(async (req, res) => {
+  const body = requireBody(req);
+  res.json(await askAboutData(body.question, body));
+}));
+
 api.get('/', (req, res) => {
   res.json({
     name: 'Portal DB API',
+    gui: '/',
     crud: [
       '/api/portal-guns',
       '/api/characters',
@@ -180,6 +227,7 @@ api.get('/', (req, res) => {
       '/api/gels',
       '/api/interactables',
       '/api/surfaces',
+      '/api/wiki-articles',
       '/api/portals',
       '/api/hazards',
       '/api/prize-cakes',
@@ -188,5 +236,7 @@ api.get('/', (req, res) => {
     multiJoin: '/api/queries/portal-placements',
     view: '/api/views/character-roster',
     storedProcedure: '/api/procedures/chambers-in-shaft/:shaftId',
+    ask: 'POST /api/ask',
+    stats: '/api/stats',
   });
 });

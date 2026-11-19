@@ -19,4 +19,9 @@ export const config = {
   database,
   appPort: Number(process.env.PORT || 3000),
   logSql: process.env.DB_LOG === 'true',
+  llm: {
+    baseUrl: process.env.LLM_BASE_URL || 'https://api.groq.com/openai/v1',
+    apiKey: process.env.LLM_API_KEY || '',
+    model: process.env.LLM_MODEL || 'llama-3.3-70b-versatile',
+  },
 };

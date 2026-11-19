@@ -238,6 +238,45 @@ export const InteractableTestChamber = sequelize.define('InteractableTestChamber
   },
 }, { tableName: 'Interactable_Test_Chambers' });
 
+// Pages imported from the Portal Wiki API (theportalwiki.com). page_id is the wiki's id.
+export const WikiArticle = sequelize.define('WikiArticle', {
+  page_id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    allowNull: false,
+  },
+  title: {
+    type: DataTypes.STRING(255),
+    allowNull: false,
+  },
+  kind: {
+    type: DataTypes.STRING(32),
+    allowNull: false,
+  },
+  language: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+  },
+  categories: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+  },
+  extract: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  wiki_url: {
+    type: DataTypes.STRING(512),
+    allowNull: false,
+  },
+}, {
+  tableName: 'Wiki_Articles',
+  indexes: [
+    { name: 'idx_wiki_articles_title', fields: ['title'] },
+    { name: 'idx_wiki_articles_kind', fields: ['kind'] },
+  ],
+});
+
 export const PrizeCake = sequelize.define('PrizeCake', {
   cake_id: {
     type: DataTypes.INTEGER,
@@ -407,6 +446,7 @@ export const TABLE_MODELS = [
   Hazard,
   InteractableTestChamber,
   PrizeCake,
+  WikiArticle,
 ];
 
 let characterRoster;

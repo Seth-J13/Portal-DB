@@ -1,17 +1,15 @@
 import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { mapError } from './errors.js';
 import { api } from './routes.js';
 
+const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../public');
+
 export function createApp() {
   const app = express();
-  app.use(express.json());
-
-  app.get('/', (req, res) => {
-    res.json({
-      name: 'Portal DB API',
-      health: '/api',
-    });
-  });
+  app.use(express.json({ limit: '1mb' }));
+  app.use(express.static(publicDir));
 
   app.use('/api', api);
 

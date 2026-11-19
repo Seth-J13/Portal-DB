@@ -22,7 +22,10 @@ export async function verifyDatabase() {
   const counts = {};
   for (const model of TABLE_MODELS) {
     counts[model.tableName] = await model.count();
-    assert(counts[model.tableName] >= 3, `${model.tableName} has fewer than 3 rows`);
+    // Wiki_Articles is filled by `npm run import` from the Portal Wiki API.
+    if (model.tableName !== 'Wiki_Articles') {
+      assert(counts[model.tableName] >= 3, `${model.tableName} has fewer than 3 rows`);
+    }
   }
 
   const [indexes] = await sequelize.query(
@@ -55,7 +58,7 @@ export async function verifyDatabase() {
   const colorErrno = await expectFailure('Green portal', () => sequelize.query(
     "INSERT INTO Portals (portal_gun_id, Color, surface_id) VALUES (1, 'Green', 1)"
   ));
-  assert(colorErrno === 3819, `expected CHECK failure, got errno ${colorErrno}`);
+  assert(colorErrno === 3819 || colorErrno === 4025, `expected CHECK failure, got errno ${colorErrno}`);
 
   const uniqueErrno = await expectFailure('second wielder', () => sequelize.query(
     "INSERT INTO Characters (name, portal_gun_id) VALUES ('Duplicate Wielder', 2)"

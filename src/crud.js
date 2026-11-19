@@ -1,3 +1,5 @@
+import { Op } from 'sequelize';
+
 /**
  * CRUD goes through Sequelize models.
  * `where` is a primary-key lookup. Single-column keys use one field.
@@ -26,6 +28,43 @@ export function createRecord(model, data) {
 
 export function listRecords(model) {
   return model.findAll({ order: orderByPrimaryKey(model) });
+}
+
+function searchWhere(model, q) {
+  if (!q) return undefined;
+
+  const like = `%${q.replace(/[\\%_]/g, '\\$&')}%`;
+  const ors = [];
+
+  const numeric = /^\d+$/.test(q);
+
+  for (const [name, attr] of Object.entries(model.rawAttributes)) {
+    const type = attr.type?.key;
+    if (type === 'STRING' || type === 'TEXT' || type === 'CHAR') {
+      ors.push({ [name]: { [Op.like]: like } });
+    } else if (numeric && type === 'INTEGER') {
+      ors.push({ [name]: Number(q) });
+    }
+  }
+
+  if (ors.length === 0) return undefined;
+  return { [Op.or]: ors };
+}
+
+export async function listRecordsPage(model, { limit, offset, q }) {
+  const result = await model.findAndCountAll({
+    where: searchWhere(model, q),
+    order: orderByPrimaryKey(model),
+    limit,
+    offset,
+  });
+
+  return {
+    data: result.rows,
+    total: result.count,
+    limit,
+    offset,
+  };
 }
 
 export function getRecord(model, where) {

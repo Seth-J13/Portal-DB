@@ -7,6 +7,8 @@ export const sequelize = new Sequelize(config.database, config.user, config.pass
   port: config.port,
   dialect: 'mysql',
   logging: config.logSql ? (sql) => console.log(sql) : false,
+  charset: 'utf8mb4',
+  collate: 'utf8mb4_unicode_ci',
   define: {
     timestamps: false,
     freezeTableName: true,

@@ -2,13 +2,14 @@
   "name": "portal-db",
   "version": "1.0.0",
   "private": true,
-  "description": "Portal facility database: Sequelize models, seed data, and a REST API.",
+  "description": "Portal facility database: Sequelize models, wiki import, REST API, and a GUI.",
   "type": "module",
   "engines": {
     "node": ">=18"
   },
   "scripts": {
     "setup": "node src/setup.js",
+    "import": "node src/import-wiki.js",
     "start": "node src/server.js",
     "dev": "node --watch src/server.js"
   },

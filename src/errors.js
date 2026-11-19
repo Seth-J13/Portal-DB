@@ -29,7 +29,7 @@ export function mapError(err) {
   const errno = err.parent?.errno ?? err.errno;
   const sqlMessage = err.parent?.sqlMessage ?? err.sqlMessage;
 
-  if (errno === 3819) {
+  if (errno === 3819 || errno === 4025) {
     return { status: 400, message: sqlMessage || 'Check constraint violated' };
   }
 
