@@ -58,7 +58,9 @@ function pageQuery(req) {
   if (!Number.isInteger(offset) || offset < 0) offset = 0;
 
   const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 80) : '';
-  return { limit, offset, q };
+  const sort = typeof req.query.sort === 'string' ? req.query.sort.trim().slice(0, 64) : '';
+  const dir = String(req.query.dir || '').toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+  return { limit, offset, q, sort, dir };
 }
 
 async function sendList(req, res, model) {

@@ -26,7 +26,7 @@ const RESOURCES = [
     id: 'humans',
     path: '/api/humans',
     label: 'Humans',
-    hint: 'One-to-one with a character. Sex is the ERD bit column.',
+    hint: 'One-to-one with a character. Sex is M or F.',
     keys: ['human_id'],
     fields: [
       { name: 'human_id', label: 'ID', type: 'number', auto: true },
@@ -38,8 +38,9 @@ const RESOURCES = [
         options: 'characters',
         optionValue: (row) => row.character_id,
         optionLabel: (row) => `${row.character_id} · ${row.name}`,
+        tableLabel: (row) => row.name,
       },
-      { name: 'sex', label: 'Sex', type: 'boolean', required: true, hint: 'Stored as a bit. The seed uses false and true.' },
+      { name: 'sex', label: 'Sex', type: 'select', required: true, choices: ['F', 'M'], hint: 'F is female. M is male.' },
       { name: 'assignment', label: 'Assignment', type: 'text', required: true, max: 15 },
     ],
   },
@@ -60,6 +61,7 @@ const RESOURCES = [
         options: 'characters',
         optionValue: (row) => row.character_id,
         optionLabel: (row) => `${row.character_id} · ${row.name}`,
+        tableLabel: (row) => row.name,
       },
       { name: 'type', label: 'Type', type: 'text', max: 100 },
       { name: 'assignment', label: 'Assignment', type: 'text', required: true, max: 50 },
@@ -116,6 +118,7 @@ const RESOURCES = [
     keys: ['shaft_id'],
     fields: [
       { name: 'shaft_id', label: 'ID', type: 'number', auto: true },
+      { name: 'name', label: 'Name', type: 'text', max: 40 },
       { name: 'era', label: 'Era', type: 'select', required: true, choices: ['Old', 'New'] },
     ],
   },
@@ -124,9 +127,11 @@ const RESOURCES = [
     id: 'test-chambers',
     path: '/api/test-chambers',
     label: 'Test chambers',
+    hint: 'The six sample rooms, plus the numbered chambers from Portal and Portal 2.',
     keys: ['chamber_id'],
     fields: [
       { name: 'chamber_id', label: 'ID', type: 'number', auto: true },
+      { name: 'name', label: 'Name', type: 'text', required: true, max: 80 },
       {
         name: 'shaft_id',
         label: 'Shaft',
@@ -134,7 +139,8 @@ const RESOURCES = [
         required: true,
         options: 'shafts',
         optionValue: (row) => row.shaft_id,
-        optionLabel: (row) => `Shaft ${row.shaft_id} · ${row.era}`,
+        optionLabel: (row) => row.name ? `${row.name} · ${row.era}` : `Shaft ${row.shaft_id} · ${row.era}`,
+        tableLabel: (row) => row.name || `Shaft ${row.shaft_id}`,
       },
     ],
   },
@@ -154,7 +160,8 @@ const RESOURCES = [
         required: true,
         options: 'test-chambers',
         optionValue: (row) => row.chamber_id,
-        optionLabel: (row) => `Chamber ${row.chamber_id}`,
+        optionLabel: (row) => row.name || `Chamber ${row.chamber_id}`,
+        tableLabel: (row) => row.name || `Chamber ${row.chamber_id}`,
       },
       {
         name: 'gel_type',
@@ -191,9 +198,11 @@ const RESOURCES = [
         required: true,
         options: 'test-chambers',
         optionValue: (row) => row.chamber_id,
-        optionLabel: (row) => `Chamber ${row.chamber_id}`,
+        optionLabel: (row) => row.name || `Chamber ${row.chamber_id}`,
+        tableLabel: (row) => row.name || `Chamber ${row.chamber_id}`,
       },
       { name: 'type', label: 'Type', type: 'text', required: true, max: 28 },
+      { name: 'description', label: 'Description', type: 'textarea', required: true, max: 255, truncate: 80, hint: 'What the hazard does to the test subject.' },
     ],
   },
   {
@@ -222,7 +231,8 @@ const RESOURCES = [
         required: true,
         options: 'test-chambers',
         optionValue: (row) => row.chamber_id,
-        optionLabel: (row) => `Chamber ${row.chamber_id}`,
+        optionLabel: (row) => row.name || `Chamber ${row.chamber_id}`,
+        tableLabel: (row) => row.name || `Chamber ${row.chamber_id}`,
       },
       {
         name: 'Interactable_type',
@@ -322,6 +332,8 @@ const state = {
   total: 0,
   rows: [],
   stats: null,
+  lookups: {},
+  sorts: {},
   rosterKind: '',
   shaftId: '3',
   ask: { question: '', answer: '', sql: '', purpose: '', rows: [], error: '' },
@@ -539,15 +551,23 @@ async function refreshResource() {
   const status = document.querySelector('#status-line');
   if (status) status.textContent = 'Loading…';
   try {
+    const sort = currentSort(resource);
     const params = new URLSearchParams({
       limit: String(PAGE),
       offset: String(state.page * PAGE),
       q: state.query,
+      sort: sort.field,
+      dir: sort.dir,
     });
     const payload = await request(`${resource.path}?${params}`);
     if (token !== requestToken) return;
     state.rows = payload.data || [];
     state.total = payload.total || 0;
+    state.lookups = {};
+    await Promise.all(resource.fields.filter((field) => field.tableLabel).map(async (field) => {
+      state.lookups[field.name] = await loadChoices(field.options);
+    }));
+    if (token !== requestToken) return;
     paintRows();
   } catch (err) {
     if (token !== requestToken) return;
@@ -556,15 +576,74 @@ async function refreshResource() {
   }
 }
 
+function defaultSortField(resource) {
+  const fields = visibleFields(resource);
+  return fields.find((field) => field.label === 'ID')
+    || fields.find((field) => field.auto)
+    || fields.find((field) => /_id$/i.test(field.name))
+    || fields[0];
+}
+
+function currentSort(resource) {
+  const saved = state.sorts[resource.id];
+  const fallback = defaultSortField(resource);
+  const known = visibleFields(resource).some((field) => field.name === saved?.field);
+  return {
+    field: known ? saved.field : fallback.name,
+    dir: saved?.dir === 'DESC' ? 'DESC' : 'ASC',
+  };
+}
+
+function chooseSort(resource, fieldName) {
+  const current = currentSort(resource);
+  state.sorts[resource.id] = {
+    field: fieldName,
+    dir: current.field === fieldName && current.dir === 'ASC' ? 'DESC' : 'ASC',
+  };
+  state.page = 0;
+  refreshResource();
+}
+
+function sortTitle(label, sorted, dir, numeric) {
+  const forward = numeric ? 'smallest first' : 'A to Z';
+  const reverse = numeric ? 'largest first' : 'Z to A';
+  if (!sorted) return `Order by ${label}, ${forward}`;
+  return `Order by ${label}, ${dir === 'ASC' ? reverse : forward}`;
+}
+
+function sortHeader(label, { numeric = false, sorted = false, dir = 'ASC', title, onSort }) {
+  const th = el('th', {
+    class: [numeric ? 'num' : '', sorted ? 'sorted' : '', sorted && dir === 'DESC' ? 'desc' : ''].filter(Boolean).join(' '),
+    'aria-sort': sorted ? (dir === 'DESC' ? 'descending' : 'ascending') : 'none',
+  });
+  const button = el('button', {
+    type: 'button',
+    class: 'sort-btn',
+    text: label,
+    title: title || `Order by ${label}`,
+  });
+  button.addEventListener('click', onSort);
+  th.append(button);
+  return th;
+}
+
 function paintRows() {
   const resource = resourceById(state.view);
   const fields = visibleFields(resource);
+  const sort = currentSort(resource);
   const table = document.querySelector('table');
   if (!table) return;
 
   const head = el('tr');
   for (const field of fields) {
-    head.append(el('th', { class: field.type === 'number' ? 'num' : '', text: field.label }));
+    const sorted = field.name === sort.field;
+    head.append(sortHeader(field.label, {
+      numeric: field.type === 'number' && !field.tableLabel,
+      sorted,
+      dir: sort.dir,
+      title: sortTitle(field.label, sorted, sort.dir, field.type === 'number' && !field.tableLabel),
+      onSort: () => chooseSort(resource, field.name),
+    }));
   }
   head.append(el('th', { text: '' }));
   table.querySelector('thead').replaceChildren(head);
@@ -613,10 +692,22 @@ function paintRows() {
   );
 }
 
+function relatedLabel(field, value) {
+  if (!field.tableLabel) return null;
+  const choices = state.lookups[field.name] || [];
+  const match = choices.find((row) => String(field.optionValue(row)) === String(value));
+  return match ? field.tableLabel(match) : null;
+}
+
 function renderCell(field, value) {
-  const td = el('td', { class: field.type === 'number' ? 'num' : '' });
+  const label = relatedLabel(field, value);
+  const td = el('td', { class: field.type === 'number' && !label ? 'num' : '' });
   if (value === null || value === undefined || value === '') {
     td.append(el('span', { class: 'muted', text: '—' }));
+    return td;
+  }
+  if (label) {
+    td.textContent = label;
     return td;
   }
   if (field.type === 'url') {
@@ -848,27 +939,73 @@ function closeEditor() {
   drawer.replaceChildren();
 }
 
+function sortValue(value) {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'boolean') return value ? 1 : 0;
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value)) return Number(value);
+  return String(value).toLowerCase();
+}
+
 function dataTable(rows) {
   if (!rows.length) return el('p', { class: 'muted', text: 'No rows.' });
   const columns = Object.keys(rows[0]);
-  const head = el('tr');
-  for (const column of columns) head.append(el('th', { text: column.replaceAll('_', ' ') }));
-  const body = el('tbody');
-  for (const row of rows) {
-    const tr = el('tr');
+  const defaultColumn = columns.find((column) => column === 'id' || column.endsWith('_id')) || columns[0];
+  const sort = { column: defaultColumn, dir: 'ASC' };
+  const sheet = el('div', { class: 'sheet' });
+
+  function paint() {
+    const ordered = [...rows].sort((a, b) => {
+      const left = sortValue(a[sort.column]);
+      const right = sortValue(b[sort.column]);
+      if (left === null && right === null) return 0;
+      if (left === null) return 1;
+      if (right === null) return -1;
+      let result = 0;
+      if (typeof left === 'number' && typeof right === 'number') result = left - right;
+      else result = String(left).localeCompare(String(right));
+      return sort.dir === 'DESC' ? -result : result;
+    });
+    const head = el('tr');
     for (const column of columns) {
-      const value = row[column];
-      const td = el('td');
-      if (value === null || value === undefined || value === '') td.append(el('span', { class: 'muted', text: '—' }));
-      else if (typeof value === 'boolean' || column === 'sex' || column === 'has_potatos' || column === 'portalable' || column === 'is_a_lie') {
-        td.textContent = value === true || value === 1 ? 'Yes' : value === false || value === 0 ? 'No' : String(value);
-      } else if (typeof value === 'object') td.textContent = JSON.stringify(value);
-      else td.textContent = String(value);
-      tr.append(td);
+      const label = column.replaceAll('_', ' ');
+      const numeric = typeof sortValue(rows.find((row) => row[column] != null)?.[column]) === 'number';
+      const sorted = column === sort.column;
+      head.append(sortHeader(label, {
+        numeric,
+        sorted,
+        dir: sort.dir,
+        title: sortTitle(label, sorted, sort.dir, numeric),
+        onSort: () => {
+          if (sort.column === column) sort.dir = sort.dir === 'ASC' ? 'DESC' : 'ASC';
+          else {
+            sort.column = column;
+            sort.dir = 'ASC';
+          }
+          paint();
+        },
+      }));
     }
-    body.append(tr);
+    const body = el('tbody');
+    for (const row of ordered) {
+      const tr = el('tr');
+      for (const column of columns) {
+        const value = row[column];
+        const td = el('td');
+        if (value === null || value === undefined || value === '') td.append(el('span', { class: 'muted', text: '—' }));
+        else if (typeof value === 'boolean' || column === 'has_potatos' || column === 'portalable' || column === 'is_a_lie') {
+          td.textContent = value === true || value === 1 ? 'Yes' : value === false || value === 0 ? 'No' : String(value);
+        } else if (typeof value === 'object') td.textContent = JSON.stringify(value);
+        else td.textContent = String(value);
+        tr.append(td);
+      }
+      body.append(tr);
+    }
+    sheet.replaceChildren(el('table', {}, [el('thead', {}, [head]), body]));
   }
-  return el('div', { class: 'sheet' }, [el('table', {}, [el('thead', {}, [head]), body])]);
+
+  paint();
+  return sheet;
 }
 
 function flattenPlacements(rows) {

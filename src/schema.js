@@ -11,7 +11,20 @@ const CHECKS = [
     name: 'chk_shaft_era',
     sql: "ALTER TABLE Shafts ADD CONSTRAINT chk_shaft_era CHECK (era IN ('Old', 'New'))",
   },
+  {
+    table: 'Humans',
+    name: 'chk_human_sex',
+    sql: "ALTER TABLE Humans ADD CONSTRAINT chk_human_sex CHECK (sex IN ('M', 'F'))",
+  },
 ];
+
+export const HAZARD_DESCRIPTIONS = {
+  'Energy Pellet': 'A bouncing ball of energy. Touching it kills the test subject.',
+  Turret: 'A sentry gun. It shoots bullets at anyone who steps into its line of sight.',
+  Crusher: 'A moving plate that presses the test subject against the chamber until they are crushed.',
+  Acid: 'A pool of toxic liquid. Falling in dissolves the test subject.',
+  'Laser Field': 'A thermal discouragement beam. Contact burns the test subject.',
+};
 
 async function constraintExists(table, name) {
   const [rows] = await sequelize.query(
@@ -23,6 +36,47 @@ async function constraintExists(table, name) {
     { replacements: { tableName: table, constraintName: name } }
   );
   return rows.length > 0;
+}
+
+export async function ensureHumanSex() {
+  const [columns] = await sequelize.query(
+    `SELECT DATA_TYPE
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND LOWER(TABLE_NAME) = 'humans'
+       AND LOWER(COLUMN_NAME) = 'sex'`
+  );
+  const dataType = String(columns[0]?.DATA_TYPE || '').toLowerCase();
+  if (dataType === 'char' || dataType === 'varchar') return;
+
+  await sequelize.query('DROP VIEW IF EXISTS vw_character_roster');
+  await sequelize.query('ALTER TABLE Humans ADD COLUMN sex_code CHAR(1) NULL');
+  await sequelize.query("UPDATE Humans SET sex_code = CASE WHEN sex = 1 THEN 'M' ELSE 'F' END");
+  await sequelize.query('ALTER TABLE Humans DROP COLUMN sex');
+  await sequelize.query('ALTER TABLE Humans CHANGE sex_code sex CHAR(1) NOT NULL');
+}
+
+export async function ensureHazardDescriptions() {
+  const [columns] = await sequelize.query(
+    `SELECT COLUMN_NAME
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND LOWER(TABLE_NAME) = 'hazards'
+       AND LOWER(COLUMN_NAME) = 'description'`
+  );
+  if (columns.length === 0) {
+    await sequelize.query('ALTER TABLE Hazards ADD COLUMN description VARCHAR(255) NULL');
+  }
+
+  for (const [type, description] of Object.entries(HAZARD_DESCRIPTIONS)) {
+    await sequelize.query(
+      `UPDATE Hazards
+       SET description = :description
+       WHERE type = :type
+         AND (description IS NULL OR description = '')`,
+      { replacements: { type, description } }
+    );
+  }
 }
 
 export async function ensureChecks() {
@@ -83,6 +137,7 @@ CREATE PROCEDURE sp_chambers_in_shaft(IN p_shaft_id INT)
 BEGIN
   SELECT
     tc.chamber_id,
+    tc.name,
     tc.shaft_id,
     sh.era,
     COUNT(DISTINCT hz.type) AS hazard_count,
@@ -94,7 +149,7 @@ BEGIN
   LEFT JOIN Interactable_Test_Chambers itc ON itc.chamber_id = tc.chamber_id
   LEFT JOIN Surface sf ON sf.chamber_id = tc.chamber_id
   WHERE tc.shaft_id = p_shaft_id
-  GROUP BY tc.chamber_id, tc.shaft_id, sh.era
+  GROUP BY tc.chamber_id, tc.name, tc.shaft_id, sh.era
   ORDER BY tc.chamber_id;
 END
 `;

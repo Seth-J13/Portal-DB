@@ -9,17 +9,17 @@ Answer from this database only. Ignore outside knowledge of the Portal games whe
 
 Tables:
 - Gel(type)
-- Shafts(shaft_id, era) — era is Old or New
+- Shafts(shaft_id, era, name) — era is Old or New
 - Portal_Guns(portal_gun_id, has_potatos) — has_potatos is 0 or 1
 - Interactable(type, description)
 - Cake(cake_id, flavor, is_a_lie) — is_a_lie is 0 or 1
-- Test_Chambers(chamber_id, shaft_id)
+- Test_Chambers(chamber_id, shaft_id, name)
 - Characters(character_id, name, portal_gun_id)
-- Humans(human_id, character_id, sex, assignment) — sex is 0 or 1; a character is a human or a robot, never both
+- Humans(human_id, character_id, sex, assignment) — sex is M or F; a character is a human or a robot, never both
 - Robots(robot_id, character_id, type, assignment, description)
 - Surface(surface_id, portalable, chamber_id, gel_type) — portalable is 0 or 1; gel_type references Gel.type
 - Portals(portal_gun_id, Color, surface_id) — Color is Blue or Orange
-- Hazards(chamber_id, type)
+- Hazards(chamber_id, type, description)
 - Interactable_Test_Chambers(Interactable_type, chamber_id)
 - Prize_Cakes(cake_id, human_id)
 - Wiki_Articles(page_id, title, kind, language, categories, extract, wiki_url)

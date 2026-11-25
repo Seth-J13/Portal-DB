@@ -39,6 +39,10 @@ export const Shaft = sequelize.define('Shaft', {
       },
     },
   },
+  name: {
+    type: DataTypes.STRING(40),
+    allowNull: true,
+  },
 }, { tableName: 'Shafts' });
 
 export const PortalGun = sequelize.define('PortalGun', {
@@ -94,6 +98,10 @@ export const TestChamber = sequelize.define('TestChamber', {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
+  name: {
+    type: DataTypes.STRING(80),
+    allowNull: true,
+  },
 }, { tableName: 'Test_Chambers' });
 
 export const Character = sequelize.define('Character', {
@@ -131,8 +139,14 @@ export const Human = sequelize.define('Human', {
     unique: 'uq_humans_character',
   },
   sex: {
-    type: DataTypes.BOOLEAN,
+    type: DataTypes.CHAR(1),
     allowNull: false,
+    validate: {
+      isIn: {
+        args: [['M', 'F']],
+        msg: "sex must be 'M' or 'F'",
+      },
+    },
   },
   assignment: {
     type: DataTypes.STRING(15),
@@ -222,6 +236,10 @@ export const Hazard = sequelize.define('Hazard', {
     primaryKey: true,
     allowNull: false,
     validate: { notEmpty: true, len: [1, 28] },
+  },
+  description: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
   },
 }, { tableName: 'Hazards' });
 
@@ -461,7 +479,7 @@ export function initCharacterRoster() {
     has_potatos: DataTypes.BOOLEAN,
     kind: DataTypes.STRING(20),
     human_id: DataTypes.INTEGER,
-    sex: DataTypes.BOOLEAN,
+    sex: DataTypes.CHAR(1),
     human_assignment: DataTypes.STRING(15),
     robot_id: DataTypes.INTEGER,
     robot_type: DataTypes.STRING(100),

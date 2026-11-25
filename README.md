@@ -32,13 +32,15 @@ On Windows, MySQL stores table names in lowercase. Workbench still opens them as
 - `Humans.character_id` and `Robots.character_id` are unique, because those are one-to-one subtypes.
 - `Surface.gel_type` is the foreign key to `Gel.type` (the Gel relationship on the ERD).
 - `has_potatos` keeps the ERD spelling.
-- `sex`, `is_a_lie`, `portalable`, and `has_potatos` are the bit columns. The API reads and writes them as booleans.
+- `is_a_lie`, `portalable`, and `has_potatos` are the bit columns. The API reads and writes them as booleans.
+- `Humans.sex` is `M` or `F`.
 - `Wiki_Articles` is the import table. `page_id` is the Portal Wiki page id, not an auto-increment.
 
 ## Constraints
 
 - `CHECK chk_portal_color`: `Portals.Color` is `Blue` or `Orange`.
 - `CHECK chk_shaft_era`: `Shafts.era` is `Old` or `New`.
+- `CHECK chk_human_sex`: `Humans.sex` is `M` or `F`.
 - `UNIQUE uq_characters_portal_gun`: a portal gun has one wielder.
 - `UNIQUE uq_humans_character` and `UNIQUE uq_robots_character`.
 - `INDEX idx_characters_name` on `Characters.name`.

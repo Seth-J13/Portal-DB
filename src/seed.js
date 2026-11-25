@@ -1,3 +1,4 @@
+import { HAZARD_DESCRIPTIONS } from './schema.js';
 import {
   Cake,
   Character,
@@ -27,10 +28,10 @@ export async function seed(transaction) {
   ], { transaction });
 
   await Shaft.bulkCreate([
-    { shaft_id: 1, era: 'Old' },
-    { shaft_id: 2, era: 'Old' },
-    { shaft_id: 3, era: 'New' },
-    { shaft_id: 4, era: 'New' },
+    { shaft_id: 1, era: 'Old', name: 'Seed track 1' },
+    { shaft_id: 2, era: 'Old', name: 'Seed track 2' },
+    { shaft_id: 3, era: 'New', name: 'Seed track 3' },
+    { shaft_id: 4, era: 'New', name: 'Seed track 4' },
   ], { transaction });
 
   await PortalGun.bulkCreate([
@@ -58,12 +59,12 @@ export async function seed(transaction) {
   ], { transaction });
 
   await TestChamber.bulkCreate([
-    { chamber_id: 1, shaft_id: 1 },
-    { chamber_id: 2, shaft_id: 1 },
-    { chamber_id: 3, shaft_id: 2 },
-    { chamber_id: 4, shaft_id: 3 },
-    { chamber_id: 5, shaft_id: 3 },
-    { chamber_id: 6, shaft_id: 4 },
+    { chamber_id: 1, shaft_id: 1, name: 'Sample chamber 1' },
+    { chamber_id: 2, shaft_id: 1, name: 'Sample chamber 2' },
+    { chamber_id: 3, shaft_id: 2, name: 'Sample chamber 3' },
+    { chamber_id: 4, shaft_id: 3, name: 'Sample chamber 4' },
+    { chamber_id: 5, shaft_id: 3, name: 'Sample chamber 5' },
+    { chamber_id: 6, shaft_id: 4, name: 'Sample chamber 6' },
   ], { transaction });
 
   await Character.bulkCreate([
@@ -78,12 +79,12 @@ export async function seed(transaction) {
     { character_id: 9, name: 'Defective Turret', portal_gun_id: null },
   ], { transaction });
 
-  // sex is the ERD bit column: 0 is false, 1 is true.
+  // sex is M or F: male or female.
   await Human.bulkCreate([
-    { human_id: 1, character_id: 1, sex: false, assignment: 'Test Subject' },
-    { human_id: 2, character_id: 2, sex: true, assignment: 'Scientist' },
-    { human_id: 3, character_id: 3, sex: true, assignment: 'Founder' },
-    { human_id: 4, character_id: 4, sex: false, assignment: 'Assistant' },
+    { human_id: 1, character_id: 1, sex: 'F', assignment: 'Test Subject' },
+    { human_id: 2, character_id: 2, sex: 'M', assignment: 'Scientist' },
+    { human_id: 3, character_id: 3, sex: 'M', assignment: 'Founder' },
+    { human_id: 4, character_id: 4, sex: 'F', assignment: 'Assistant' },
   ], { transaction });
 
   await Robot.bulkCreate([
@@ -148,15 +149,15 @@ export async function seed(transaction) {
   ], { transaction });
 
   await Hazard.bulkCreate([
-    { chamber_id: 1, type: 'Energy Pellet' },
-    { chamber_id: 1, type: 'Turret' },
-    { chamber_id: 2, type: 'Turret' },
-    { chamber_id: 3, type: 'Crusher' },
-    { chamber_id: 4, type: 'Turret' },
-    { chamber_id: 4, type: 'Acid' },
-    { chamber_id: 5, type: 'Laser Field' },
-    { chamber_id: 5, type: 'Crusher' },
-    { chamber_id: 6, type: 'Acid' },
+    { chamber_id: 1, type: 'Energy Pellet', description: HAZARD_DESCRIPTIONS['Energy Pellet'] },
+    { chamber_id: 1, type: 'Turret', description: HAZARD_DESCRIPTIONS.Turret },
+    { chamber_id: 2, type: 'Turret', description: HAZARD_DESCRIPTIONS.Turret },
+    { chamber_id: 3, type: 'Crusher', description: HAZARD_DESCRIPTIONS.Crusher },
+    { chamber_id: 4, type: 'Turret', description: HAZARD_DESCRIPTIONS.Turret },
+    { chamber_id: 4, type: 'Acid', description: HAZARD_DESCRIPTIONS.Acid },
+    { chamber_id: 5, type: 'Laser Field', description: HAZARD_DESCRIPTIONS['Laser Field'] },
+    { chamber_id: 5, type: 'Crusher', description: HAZARD_DESCRIPTIONS.Crusher },
+    { chamber_id: 6, type: 'Acid', description: HAZARD_DESCRIPTIONS.Acid },
   ], { transaction });
 
   await InteractableTestChamber.bulkCreate([

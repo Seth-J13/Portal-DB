@@ -42,9 +42,9 @@ export async function verifyDatabase() {
      FROM information_schema.TABLE_CONSTRAINTS
      WHERE TABLE_SCHEMA = DATABASE()
        AND CONSTRAINT_TYPE = 'CHECK'
-       AND CONSTRAINT_NAME IN ('chk_portal_color', 'chk_shaft_era')`
+       AND CONSTRAINT_NAME IN ('chk_portal_color', 'chk_shaft_era', 'chk_human_sex')`
   );
-  assert(checks.length === 2, 'CHECK constraints are missing');
+  assert(checks.length === 3, 'CHECK constraints are missing');
 
   const [uniques] = await sequelize.query(
     `SELECT INDEX_NAME

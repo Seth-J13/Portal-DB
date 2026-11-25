@@ -1,7 +1,8 @@
 import { sequelize, ensureDatabase } from './db.js';
 import { Character, TABLE_MODELS, initCharacterRoster } from './models.js';
-import { ensureChecks, ensureIndex, ensureProcedure, ensureView } from './schema.js';
+import { ensureChecks, ensureHazardDescriptions, ensureHumanSex, ensureIndex, ensureProcedure, ensureView } from './schema.js';
 import { seed } from './seed.js';
+import { ensureGameChambers } from './chambers.js';
 
 async function syncTables(force) {
   if (force) {
@@ -26,6 +27,8 @@ export async function initDatabase({ force = false } = {}) {
   }
 
   await syncTables(force);
+  await ensureHumanSex();
+  await ensureHazardDescriptions();
   await ensureChecks();
   await ensureIndex();
   await ensureView();
@@ -36,6 +39,9 @@ export async function initDatabase({ force = false } = {}) {
   if (populated === 0) {
     await sequelize.transaction((transaction) => seed(transaction));
   }
+
+  await ensureGameChambers();
+  await ensureProcedure();
 }
 
 export async function closeDatabase() {

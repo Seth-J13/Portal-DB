@@ -1,4 +1,4 @@
-import { Op } from 'sequelize';
+import { Op, literal } from 'sequelize';
 
 /**
  * CRUD goes through Sequelize models.
@@ -12,6 +12,30 @@ function primaryKeyNames(model) {
 
 function orderByPrimaryKey(model) {
   return primaryKeyNames(model).map((key) => [key, 'ASC']);
+}
+
+const RELATED_NAME_SORT = {
+  Humans: { character_id: ['Characters', 'character_id', 'name'] },
+  Robots: { character_id: ['Characters', 'character_id', 'name'] },
+  Test_Chambers: { shaft_id: ['Shafts', 'shaft_id', 'name'] },
+  Surface: { chamber_id: ['Test_Chambers', 'chamber_id', 'name'] },
+  Hazards: { chamber_id: ['Test_Chambers', 'chamber_id', 'name'] },
+  Interactable_Test_Chambers: { chamber_id: ['Test_Chambers', 'chamber_id', 'name'] },
+};
+
+function orderFor(model, sort, dir) {
+  const direction = dir === 'DESC' ? 'DESC' : 'ASC';
+  const column = typeof sort === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(sort) ? sort : '';
+  const related = RELATED_NAME_SORT[model.tableName]?.[column];
+  if (related) {
+    const [otherTable, otherKey, otherField] = related;
+    const expr = `(SELECT \`${otherField}\` FROM \`${otherTable}\` AS sort_ref WHERE sort_ref.\`${otherKey}\` = \`${model.name}\`.\`${column}\`)`;
+    return [[literal(expr), direction], ...orderByPrimaryKey(model)];
+  }
+  if (column && model.rawAttributes[column]) {
+    return [[column, direction], ...orderByPrimaryKey(model).filter(([key]) => key !== column)];
+  }
+  return orderByPrimaryKey(model);
 }
 
 function withoutPrimaryKey(model, data) {
@@ -51,10 +75,10 @@ function searchWhere(model, q) {
   return { [Op.or]: ors };
 }
 
-export async function listRecordsPage(model, { limit, offset, q }) {
+export async function listRecordsPage(model, { limit, offset, q, sort, dir }) {
   const result = await model.findAndCountAll({
     where: searchWhere(model, q),
-    order: orderByPrimaryKey(model),
+    order: orderFor(model, sort, dir),
     limit,
     offset,
   });
